@@ -1,0 +1,20 @@
+node_modules/
+out/
+dist/
+coverage/
+.tools/
+.npm-cache/
+.electron-cache/
+.DS_Store
+*.log
+release/
+
+# Local / agent tooling (not part of the public project)
+.github/skills/
+.agent-private/
+docs/
+.tmp-verify/
+.vscode/
+.idea/
+*.kdbx
+*.kdbx.bak

@@ -1,0 +1,28 @@
+appId: dev.tunnelnote.app
+productName: TunnelNote
+directories:
+  output: release
+files:
+  - out/**
+  - package.json
+  - LICENSE
+  - THIRD_PARTY_LICENSES.md
+asar: true
+linux:
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
+  target: [AppImage, deb]
+  category: Network
+  maintainer: TunnelNote contributors
+win:
+  artifactName: ${productName}-${version}-windows-${arch}-setup.${ext}
+  target: [nsis]
+  # Set CSC_LINK / CSC_KEY_PASSWORD to sign; unsigned builds trigger SmartScreen warnings.
+mac:
+  artifactName: ${productName}-${version}-macos-${arch}.${ext}
+  target: [dmg]
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  # Notarization needs APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID.
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

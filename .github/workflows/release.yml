@@ -1,0 +1,112 @@
+name: Release
+
+# Every push to main builds installers for Windows, macOS and Linux and publishes
+# them as a new GitHub Release. The version is <major>.<minor> from package.json
+# plus the workflow run number, so each push gets a unique, increasing version.
+# Pushing a v* tag publishes that exact version instead.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Compute version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: compute
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            BASE=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+            VERSION="$BASE.${{ github.run_number }}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building TunnelNote $VERSION"
+
+  package:
+    name: Package ${{ matrix.label }}
+    needs: version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, label: Linux x64 }
+          - { os: windows-latest, label: Windows x64 }
+          - { os: macos-latest, label: macOS Apple Silicon }
+          - { os: macos-15-intel, label: macOS Intel }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Build installer
+        shell: bash
+        run: npx electron-builder --publish never --config.extraMetadata.version=${{ needs.version.outputs.version }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          if-no-files-found: error
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.exe
+            release/*.dmg
+
+  publish:
+    name: Publish GitHub Release
+    needs: [version, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: installer-*
+          merge-multiple: true
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: TunnelNote ${{ needs.version.outputs.version }}
+          files: dist/*
+          generate_release_notes: true
+          make_latest: true
+          body: |
+            ## Download TunnelNote ${{ needs.version.outputs.version }}
+
+            | Your system | Download |
+            | --- | --- |
+            | **Windows** 10/11 (64-bit) | `TunnelNote-*-windows-x64-setup.exe` |
+            | **macOS** Apple Silicon (M1+) | `TunnelNote-*-macos-arm64.dmg` |
+            | **macOS** Intel | `TunnelNote-*-macos-x64.dmg` |
+            | **Linux** (any distro) | `TunnelNote-*-linux-x86_64.AppImage` |
+            | **Linux** Debian / Ubuntu | `TunnelNote-*-linux-amd64.deb` |
+
+            Verify downloads with `SHA256SUMS.txt`. Builds are not code-signed yet, so Windows SmartScreen
+            and macOS Gatekeeper may warn on first launch (see the README for details).
