@@ -25,6 +25,13 @@ if (process.platform === 'linux' && !process.env.TUNNELNOTE_USE_WAYLAND) {
   app.commandLine.appendSwitch('ozone-platform', 'x11');
 }
 
+// Some Linux drivers fail VA-API/GPU init and spam the console; the UI renders fine in software.
+if (process.platform === 'linux' && !process.env.TUNNELNOTE_ENABLE_GPU) {
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch('disable-features', 'VaapiVideoDecoder,VaapiVideoEncoder');
+  app.commandLine.appendSwitch('disable-logging');
+}
+
 // Chromium prints harmless GPU/VSync errors on some Linux setups; keep only fatal logs.
 app.commandLine.appendSwitch('log-level', '3');
 
