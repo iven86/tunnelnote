@@ -64,7 +64,7 @@ jobs:
         run: npx electron-builder --publish never --config.extraMetadata.version=${{ needs.version.outputs.version }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: installer-${{ matrix.os }}
           if-no-files-found: error
